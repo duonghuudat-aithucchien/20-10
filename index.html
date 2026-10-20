@@ -6,6 +6,9 @@
   <title>🌹 Chúc Mừng 20-10 | Đại Hội Tôn Vinh Phái Đẹp Phong Cách 9x 💖</title>
   <meta name="description" content="Thiệp điện tử 20-10 phong cách 9x đỏ hồng ngập tràn hoa tươi và 30 lời chúc ngọt ngào!" />
 
+  <!-- Preload file nhạc nền để mở web phát ngay lập tức -->
+  <link rel="preload" href="Trú Mưa Nhóm HKT Official MV.mp3" as="audio" type="audio/mpeg" />
+
   <!-- Google Fonts đậm chất 9x & chữ nghệ thuật -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,7 +17,17 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Lớp Canvas mưa cánh hoa hồng & hoa tươi 9x rơi ngập tràn -->
+  <!-- Thẻ Audio phát nhạc nền ngay khi mở web -->
+  <audio
+    id="bgMusicElement"
+    src="Trú Mưa Nhóm HKT Official MV.mp3"
+    autoplay
+    loop
+    preload="auto"
+    playsinline
+  ></audio>
+
+  <!-- Lớp Canvas mưa cánh hoa hồng & hoa tươi 9x rơi ngập tràn (GPU Cached) -->
   <canvas id="flowerCanvas"></canvas>
 
   <!-- Cụm hoa tươi trang trí 4 góc màn hình đậm chất thiệp 9x -->
@@ -63,8 +76,9 @@
   <!-- Hiển thị Tên người nhập + Câu trả lời "Đạt đẹp trai không" xoay vòng -->
   <!-- ================================================================== -->
   <div id="pageOrbitContainer" class="page-orbit-container hidden" aria-live="polite">
+    <div class="orbit-ring-guide"></div>
     <div class="orbit-ring" id="orbitRing">
-      <!-- Các thẻ xoay vòng sẽ được render động bằng JS khi ở Bước 2 -->
+      <!-- Các thẻ xoay vòng mượt mà bằng requestAnimationFrame + translate3d -->
     </div>
   </div>
 
@@ -186,11 +200,12 @@
 
         <!-- Vòng xoay 360 độ ngay trong thẻ trung tâm -->
         <div class="center-carousel-wheel" id="centerCarouselWheel">
+          <div class="wheel-orbit-guide"></div>
           <div class="wheel-orbit-track" id="wheelOrbitTrack">
-            <div class="wheel-pill pill-1">🌹 <strong class="dyn-name">Bạn</strong>: Đạt đẹp trai số 1!</div>
-            <div class="wheel-pill pill-2">💖 <strong class="dyn-name">Bạn</strong>: Đạt đẹp trai vô địch!</div>
-            <div class="wheel-pill pill-3">✨ <strong class="dyn-name">Bạn</strong>: Đạt đẹp trai 1000 điểm!</div>
-            <div class="wheel-pill pill-4">👑 <strong class="dyn-name">Bạn</strong>: Đạt đẹp trai hết nước chấm!</div>
+            <div class="wheel-pill" data-pill-idx="0">🌹 <strong class="dyn-name">Bạn</strong>: Đạt đẹp trai số 1!</div>
+            <div class="wheel-pill" data-pill-idx="1">💖 <strong class="dyn-name">Bạn</strong>: Đạt đẹp trai vô địch!</div>
+            <div class="wheel-pill" data-pill-idx="2">✨ <strong class="dyn-name">Bạn</strong>: Đạt đẹp trai 1000 điểm!</div>
+            <div class="wheel-pill" data-pill-idx="3">👑 <strong class="dyn-name">Bạn</strong>: Đạt đẹp trai hết nước chấm!</div>
           </div>
 
           <!-- Tâm vòng xoay hiển thị Tên + Câu trả lời hiện tại -->

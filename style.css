@@ -1,5 +1,5 @@
 /* ==========================================================================
-   STYLE 9X ĐỎ HỒNG RỰC RỠ - ĐẠI HỘI CHÚC MỪNG 20-10 CỦA ĐẠT ĐẸP TRAI
+   STYLE 9X ĐỎ HỒNG RỰC RỠ - TỐI ƯU HÓA ANIMATION GPU 60/120FPS SIÊU MƯỢT
    Tone chủ đạo: Đỏ Hồng Nhung, Phấn Hồng 9x, Vàng Kim Tuyến & Hoa Tươi Ngập Tràn
    ========================================================================== */
 
@@ -14,7 +14,9 @@
   --gold-9x: #ffd700;
   --gold-9x-light: #fff3b0;
   --text-dark: #4a0e2e;
-  --shadow-9x: 0 12px 35px rgba(136, 14, 79, 0.38);
+  --shadow-9x: 0 12px 32px rgba(136, 14, 79, 0.34);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 * {
@@ -37,6 +39,7 @@ body {
     linear-gradient(135deg, #7b0938 0%, #b81452 30%, #d81b60 60%, #ff5c8d 100%);
   background-attachment: fixed;
   position: relative;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Họa tiết chấm bi kim tuyến 9x phủ nhẹ trên nền */
@@ -45,15 +48,15 @@ body::before {
   position: fixed;
   inset: 0;
   background-image:
-    radial-gradient(rgba(255, 215, 0, 0.22) 1.5px, transparent 1.5px),
-    radial-gradient(rgba(255, 255, 255, 0.18) 1px, transparent 1px);
+    radial-gradient(rgba(255, 215, 0, 0.2) 1.5px, transparent 1.5px),
+    radial-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1px);
   background-size: 36px 36px, 22px 22px;
   background-position: 0 0, 11px 11px;
   pointer-events: none;
   z-index: 0;
 }
 
-/* Canvas mưa hoa tươi & cánh hoa hồng rơi */
+/* Canvas mưa hoa tươi & cánh hoa hồng rơi (GPU layer) */
 #flowerCanvas {
   position: fixed;
   inset: 0;
@@ -61,6 +64,7 @@ body::before {
   height: 100%;
   pointer-events: none;
   z-index: 2;
+  will-change: contents;
 }
 
 /* Cụm hoa tươi 4 góc màn hình */
@@ -69,8 +73,8 @@ body::before {
   font-size: clamp(1.5rem, 3vw, 2.3rem);
   z-index: 3;
   pointer-events: none;
-  filter: drop-shadow(0 4px 8px rgba(136, 14, 79, 0.5));
-  animation: swayCorner 3.2s ease-in-out infinite alternate;
+  will-change: transform;
+  animation: swayCorner 3.6s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
   user-select: none;
 }
 
@@ -99,15 +103,15 @@ body::before {
 
 @keyframes swayCorner {
   0% {
-    transform: scale(1) rotate(-4deg);
+    transform: translate3d(0, 0, 0) scale(1) rotate(-4deg);
   }
   100% {
-    transform: scale(1.08) rotate(4deg);
+    transform: translate3d(0, -3px, 0) scale(1.07) rotate(4deg);
   }
 }
 
 /* ==========================================================================
-   THANH CHỮ CHẠY MARQUEE 9X HUYỀN THOẠI
+   THANH CHỮ CHẠY MARQUEE 9X HUYỀN THOẠI (GPU translate3d)
    ========================================================================== */
 .retro-marquee-bar {
   position: sticky;
@@ -122,21 +126,22 @@ body::before {
   padding: 6px 0;
   overflow: hidden;
   white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .marquee-track {
   display: inline-flex;
   gap: 60px;
-  animation: marqueeScroll 28s linear infinite;
+  will-change: transform;
+  animation: marqueeScroll 30s linear infinite;
 }
 
 @keyframes marqueeScroll {
   0% {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
   100% {
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
@@ -165,7 +170,7 @@ body::before {
   border-radius: 999px;
   padding: 6px 14px;
   color: #fff;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35), inset 0 0 10px rgba(255, 64, 129, 0.35);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.32), inset 0 0 10px rgba(255, 64, 129, 0.3);
 }
 
 .equalizer {
@@ -179,33 +184,36 @@ body::before {
 .equalizer span {
   flex: 1;
   background: linear-gradient(to top, #ff4081, #ffd700);
-  height: 4px;
+  height: 18px;
   border-radius: 2px;
-  transition: height 0.2s ease;
+  transform-origin: bottom;
+  transform: scaleY(0.22);
+  will-change: transform;
+  transition: transform 0.25s ease;
 }
 
 .equalizer.active span:nth-child(1) {
-  animation: eqBounce 0.45s ease-in-out infinite alternate;
+  animation: eqBounceScale 0.46s ease-in-out infinite alternate;
 }
 .equalizer.active span:nth-child(2) {
-  animation: eqBounce 0.35s ease-in-out infinite alternate 0.1s;
+  animation: eqBounceScale 0.36s ease-in-out infinite alternate 0.1s;
 }
 .equalizer.active span:nth-child(3) {
-  animation: eqBounce 0.55s ease-in-out infinite alternate 0.2s;
+  animation: eqBounceScale 0.54s ease-in-out infinite alternate 0.2s;
 }
 .equalizer.active span:nth-child(4) {
-  animation: eqBounce 0.4s ease-in-out infinite alternate 0.15s;
+  animation: eqBounceScale 0.4s ease-in-out infinite alternate 0.15s;
 }
 .equalizer.active span:nth-child(5) {
-  animation: eqBounce 0.5s ease-in-out infinite alternate 0.05s;
+  animation: eqBounceScale 0.5s ease-in-out infinite alternate 0.05s;
 }
 
-@keyframes eqBounce {
+@keyframes eqBounceScale {
   0% {
-    height: 4px;
+    transform: scaleY(0.22);
   }
   100% {
-    height: 18px;
+    transform: scaleY(1);
   }
 }
 
@@ -244,12 +252,12 @@ body::before {
   font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: 0 2px 8px rgba(233, 30, 99, 0.4);
+  transition: transform 0.22s var(--ease-out-expo), box-shadow 0.22s ease;
+  box-shadow: 0 2px 8px rgba(233, 30, 99, 0.38);
 }
 
 .retro-btn-sm:hover {
-  transform: translateY(-1px) scale(1.03);
+  transform: translate3d(0, -1.5px, 0) scale(1.03);
   box-shadow: 0 4px 12px rgba(255, 215, 0, 0.5);
 }
 
@@ -264,8 +272,7 @@ body::before {
 }
 
 /* ==========================================================================
-   VÒNG XOAY QUANH PAGE (ORBIT RING) - BƯỚC 2
-   Hiển thị Tên người nhập + Câu trả lời "Đạt đẹp trai không" xoay vòng quanh page
+   VÒNG XOAY QUANH PAGE (ORBIT RING) - BƯỚC 2 (60/120FPS GPU TRANSLATE3D)
    ========================================================================== */
 .page-orbit-container {
   position: fixed;
@@ -278,82 +285,48 @@ body::before {
   overflow: hidden;
 }
 
+.orbit-ring-guide {
+  position: absolute;
+  width: min(92vw, 960px);
+  height: min(86vh, 740px);
+  border-radius: 50%;
+  border: 2px dashed rgba(255, 215, 0, 0.42);
+  box-shadow: 0 0 35px rgba(255, 64, 129, 0.28), inset 0 0 35px rgba(255, 64, 129, 0.16);
+  pointer-events: none;
+}
+
 .orbit-ring {
   position: relative;
-  width: min(94vw, 980px);
-  height: min(88vh, 760px);
-  border-radius: 50%;
-  border: 2px dashed rgba(255, 215, 0, 0.45);
-  box-shadow: 0 0 40px rgba(255, 64, 129, 0.35), inset 0 0 40px rgba(255, 64, 129, 0.2);
-  animation: orbitPageSpin 22s linear infinite;
-}
-
-.orbit-ring.reverse-spin {
-  animation-direction: reverse;
-}
-
-.orbit-ring.turbo-spin {
-  animation-duration: 7.5s;
-}
-
-@keyframes orbitPageSpin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes orbitCounterSpin {
-  0% {
-    transform: translate(-50%, -50%) rotate(0deg);
-  }
-  100% {
-    transform: translate(-50%, -50%) rotate(-360deg);
-  }
-}
-
-@keyframes orbitCounterSpinReverse {
-  0% {
-    transform: translate(-50%, -50%) rotate(0deg);
-  }
-  100% {
-    transform: translate(-50%, -50%) rotate(360deg);
-  }
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 .orbit-card {
   position: absolute;
+  left: 50%;
+  top: 50%;
   pointer-events: auto;
   cursor: pointer;
   background: linear-gradient(135deg, #fff0f6 0%, #ffc1da 100%);
   border: 2px solid var(--gold-9x);
-  outline: 2px solid var(--red-9x-main);
   color: var(--red-9x-deep);
   padding: 7px 14px;
   border-radius: 999px;
-  font-size: clamp(0.74rem, 1.4vw, 0.9rem);
+  font-size: clamp(0.74rem, 1.4vw, 0.88rem);
   font-weight: 700;
   white-space: nowrap;
-  box-shadow: 0 6px 18px rgba(136, 14, 79, 0.45);
-  animation: orbitCounterSpin 22s linear infinite;
-  transition: scale 0.2s ease, background 0.2s ease;
+  box-shadow: 0 6px 16px rgba(136, 14, 79, 0.36), 0 0 0 2px var(--red-9x-main);
+  will-change: transform;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
   user-select: none;
-}
-
-.orbit-ring.reverse-spin .orbit-card {
-  animation-name: orbitCounterSpinReverse;
-}
-
-.orbit-ring.turbo-spin .orbit-card {
-  animation-duration: 7.5s;
+  backface-visibility: hidden;
 }
 
 .orbit-card:hover {
-  scale: 1.12;
   background: linear-gradient(135deg, #ffd700 0%, #ff80ab 100%);
   color: #4a001f;
+  box-shadow: 0 8px 22px rgba(255, 215, 0, 0.65), 0 0 0 2.5px #d81b60;
   z-index: 30;
 }
 
@@ -369,11 +342,21 @@ body::before {
   position: fixed;
   inset: 0;
   z-index: 80;
-  background: radial-gradient(circle, rgba(216, 27, 96, 0.92) 0%, rgba(74, 7, 36, 0.96) 100%);
+  background: radial-gradient(circle, rgba(216, 27, 96, 0.9) 0%, rgba(74, 7, 36, 0.95) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
+  animation: overlayFadeIn 0.25s ease forwards;
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .spinning-hero-banner {
@@ -385,24 +368,25 @@ body::before {
   max-width: 560px;
   width: 100%;
   text-align: center;
-  box-shadow: 0 0 60px rgba(255, 215, 0, 0.8);
-  animation: heroVortexSpin 1.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  box-shadow: 0 0 60px rgba(255, 215, 0, 0.75);
+  will-change: transform, opacity;
+  animation: heroVortexSpin 1.65s var(--ease-out-expo) forwards;
 }
 
 @keyframes heroVortexSpin {
   0% {
-    transform: scale(0.15) rotate(-720deg);
+    transform: translate3d(0, 0, 0) scale(0.18) rotate(-540deg);
     opacity: 0;
   }
   65% {
-    transform: scale(1.08) rotate(20deg);
+    transform: translate3d(0, 0, 0) scale(1.05) rotate(12deg);
     opacity: 1;
   }
   85% {
-    transform: scale(0.97) rotate(-6deg);
+    transform: translate3d(0, 0, 0) scale(0.98) rotate(-4deg);
   }
   100% {
-    transform: scale(1) rotate(0deg);
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
     opacity: 1;
   }
 }
@@ -461,7 +445,7 @@ body::before {
   justify-content: center;
   gap: 8px;
   margin-bottom: 16px;
-  background: rgba(86, 3, 38, 0.65);
+  background: rgba(86, 3, 38, 0.68);
   border: 1.5px solid rgba(255, 215, 0, 0.55);
   border-radius: 999px;
   padding: 8px 18px;
@@ -475,6 +459,7 @@ body::before {
   color: rgba(255, 255, 255, 0.65);
   font-size: 0.8rem;
   font-weight: 700;
+  transition: color 0.3s ease;
 }
 
 .step-dot.active {
@@ -495,6 +480,7 @@ body::before {
   background: rgba(255, 255, 255, 0.15);
   border: 1.5px solid currentColor;
   font-size: 0.78rem;
+  transition: all 0.3s var(--ease-out-expo);
 }
 
 .step-dot.active .dot-num {
@@ -502,12 +488,14 @@ body::before {
   color: #fff;
   border-color: var(--gold-9x);
   box-shadow: 0 0 10px var(--gold-9x);
+  transform: scale(1.1);
 }
 
 .step-line {
   width: 28px;
   height: 2px;
   background: rgba(255, 255, 255, 0.25);
+  transition: background 0.35s ease;
 }
 
 .step-line.active {
@@ -529,21 +517,22 @@ body::before {
   padding: 26px 24px 30px;
   box-shadow:
     var(--shadow-9x),
-    0 0 0 8px rgba(255, 128, 171, 0.35),
-    inset 0 0 28px rgba(233, 30, 99, 0.15);
+    0 0 0 8px rgba(255, 128, 171, 0.32),
+    inset 0 0 28px rgba(233, 30, 99, 0.14);
   text-align: center;
   overflow: hidden;
-  animation: cardPopIn 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
+  animation: cardSmoothEnter 0.55s var(--ease-out-expo) both;
 }
 
-@keyframes cardPopIn {
+@keyframes cardSmoothEnter {
   0% {
     opacity: 0;
-    transform: translateY(18px) scale(0.96);
+    transform: translate3d(0, 22px, 0) scale(0.96);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
@@ -561,7 +550,6 @@ body::before {
   gap: 8px;
   font-size: clamp(1.25rem, 3vw, 1.65rem);
   margin-bottom: 10px;
-  filter: drop-shadow(0 2px 4px rgba(216, 27, 96, 0.25));
 }
 
 .retro-badge-9x {
@@ -575,7 +563,7 @@ body::before {
   font-weight: 800;
   letter-spacing: 0.8px;
   margin-bottom: 12px;
-  box-shadow: 0 3px 10px rgba(173, 20, 87, 0.3);
+  box-shadow: 0 3px 10px rgba(173, 20, 87, 0.28);
 }
 
 /* Chữ nghệ thuật WordArt 9x */
@@ -612,15 +600,16 @@ body::before {
 .bouquet-emoji {
   font-size: clamp(2.8rem, 7vw, 4rem);
   line-height: 1.1;
-  animation: floatBouquet 2.6s ease-in-out infinite alternate;
+  will-change: transform;
+  animation: floatBouquet 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
 }
 
 @keyframes floatBouquet {
   0% {
-    transform: translateY(-4px) scale(0.98);
+    transform: translate3d(0, -4px, 0) scale(0.98);
   }
   100% {
-    transform: translateY(5px) scale(1.05);
+    transform: translate3d(0, 5px, 0) scale(1.05);
   }
 }
 
@@ -668,13 +657,13 @@ body::before {
   border: 3px solid #e91e63;
   border-radius: 16px;
   outline: none;
-  box-shadow: inset 0 2px 6px rgba(136, 14, 79, 0.12), 0 4px 12px rgba(233, 30, 99, 0.15);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: inset 0 2px 6px rgba(136, 14, 79, 0.1), 0 4px 12px rgba(233, 30, 99, 0.14);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s var(--ease-out-expo);
 }
 
 .input-9x:focus {
   border-color: #ad1457;
-  box-shadow: 0 0 0 4px rgba(255, 64, 129, 0.3), 0 6px 16px rgba(233, 30, 99, 0.25);
+  box-shadow: 0 0 0 4px rgba(255, 64, 129, 0.28), 0 6px 16px rgba(233, 30, 99, 0.22);
 }
 
 .input-flower-icon {
@@ -704,19 +693,19 @@ body::before {
 .chip-9x {
   background: #fff0f6;
   border: 1.5px solid #ff4081;
-  color: #AD1457;
+  color: #ad1457;
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 0.76rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 0.2s var(--ease-out-expo), background 0.2s ease, color 0.2s ease;
 }
 
 .chip-9x:hover {
   background: #ff4081;
   color: #fff;
-  transform: translateY(-1px);
+  transform: translate3d(0, -1.5px, 0);
 }
 
 .error-msg-9x {
@@ -742,26 +731,18 @@ body::before {
   font-weight: 800;
   font-family: "Be Vietnam Pro", sans-serif;
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(216, 27, 96, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.45);
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  box-shadow: 0 8px 20px rgba(216, 27, 96, 0.42), inset 0 2px 4px rgba(255, 255, 255, 0.42);
+  transition: transform 0.25s var(--ease-out-expo), box-shadow 0.25s ease;
+  will-change: transform;
 }
 
 .btn-primary-9x:hover {
-  transform: translateY(-2px) scale(1.015);
-  box-shadow: 0 10px 26px rgba(216, 27, 96, 0.65), 0 0 15px var(--gold-9x);
+  transform: translate3d(0, -2.5px, 0) scale(1.015);
+  box-shadow: 0 12px 26px rgba(216, 27, 96, 0.6), 0 0 14px var(--gold-9x);
 }
 
-.pulse-glow {
-  animation: pulseGlowBtn 2s infinite;
-}
-
-@keyframes pulseGlowBtn {
-  0%, 100% {
-    box-shadow: 0 8px 20px rgba(216, 27, 96, 0.45), 0 0 0 0 rgba(255, 64, 129, 0.6);
-  }
-  50% {
-    box-shadow: 0 8px 25px rgba(216, 27, 96, 0.65), 0 0 0 10px rgba(255, 64, 129, 0);
-  }
+.btn-primary-9x:active {
+  transform: translate3d(0, 0, 0) scale(0.99);
 }
 
 /* ==========================================================================
@@ -787,7 +768,7 @@ body::before {
   border-radius: 22px;
   padding: 14px 12px;
   margin: 12px 0 16px;
-  box-shadow: inset 0 0 18px rgba(233, 30, 99, 0.16);
+  box-shadow: inset 0 0 18px rgba(233, 30, 99, 0.14);
 }
 
 .live-stage-header {
@@ -798,7 +779,7 @@ body::before {
   margin-bottom: 8px;
 }
 
-/* Vòng xoay trung tâm ngay trong card Bước 2 */
+/* Vòng xoay trung tâm ngay trong card Bước 2 (GPU translate3d) */
 .center-carousel-wheel {
   position: relative;
   height: 235px;
@@ -809,26 +790,25 @@ body::before {
   margin: 4px 0;
 }
 
-.wheel-orbit-track {
+.wheel-orbit-guide {
   position: absolute;
-  width: 440px;
-  height: 205px;
-  border: 2px dashed rgba(216, 27, 96, 0.45);
+  width: 430px;
+  height: 196px;
+  border: 2px dashed rgba(216, 27, 96, 0.4);
   border-radius: 50%;
-  animation: orbitPageSpin 14s linear infinite;
   pointer-events: none;
 }
 
-.wheel-Orbit-reverse {
-  animation-direction: reverse;
-}
-
-.wheel-Orbit-turbo {
-  animation-duration: 5s;
+.wheel-orbit-track {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
 .wheel-pill {
   position: absolute;
+  left: 50%;
+  top: 50%;
   background: linear-gradient(90deg, #ad1457, #e91e63);
   color: #fff;
   border: 1.5px solid var(--gold-9x);
@@ -836,33 +816,9 @@ body::before {
   border-radius: 999px;
   font-size: 0.73rem;
   white-space: nowrap;
-  box-shadow: 0 3px 10px rgba(136, 14, 79, 0.35);
-  animation: orbitCounterSpin 14s linear infinite;
-}
-
-.wheel-Orbit-reverse .wheel-pill {
-  animation-name: orbitCounterSpinReverse;
-}
-
-.wheel-Orbit-turbo .wheel-pill {
-  animation-duration: 5s;
-}
-
-.wheel-pill.pill-1 {
-  top: 0%;
-  left: 50%;
-}
-.wheel-pill.pill-2 {
-  top: 50%;
-  left: 100%;
-}
-.wheel-pill.pill-3 {
-  top: 100%;
-  left: 50%;
-}
-.wheel-pill.pill-4 {
-  top: 50%;
-  left: 0%;
+  box-shadow: 0 3px 10px rgba(136, 14, 79, 0.3);
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .wheel-center-box {
@@ -875,7 +831,8 @@ body::before {
   padding: 12px 18px;
   max-width: 330px;
   width: 90%;
-  box-shadow: 0 8px 20px rgba(173, 20, 87, 0.25);
+  box-shadow: 0 8px 20px rgba(173, 20, 87, 0.22);
+  transition: transform 0.3s var(--ease-out-expo);
 }
 
 .center-user-tag {
@@ -904,6 +861,7 @@ body::before {
   font-weight: 700;
   font-size: 0.92rem;
   color: #b80d48;
+  transition: transform 0.22s var(--ease-out-expo);
 }
 
 .spin-controls-bar {
@@ -930,12 +888,13 @@ body::before {
   font-size: 0.74rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s var(--ease-out-expo);
 }
 
 .retro-btn-xs:hover {
   background: #d81b60;
   color: #fff;
+  transform: translate3d(0, -1px, 0);
 }
 
 .instruction-9x {
@@ -944,7 +903,7 @@ body::before {
   margin-bottom: 12px;
 }
 
-/* Lưới các nút trả lời khen Đạt đẹp trai */
+/* Lưới các nút trả lời */
 .answer-options-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -962,14 +921,15 @@ body::before {
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
-  box-shadow: 0 5px 14px rgba(173, 20, 87, 0.35);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 5px 14px rgba(173, 20, 87, 0.32);
+  transition: transform 0.24s var(--ease-out-expo), box-shadow 0.24s ease, background 0.24s ease;
+  will-change: transform;
 }
 
 .btn-answer-yes:hover {
-  transform: translateY(-2px) scale(1.02);
+  transform: translate3d(0, -2.5px, 0) scale(1.02);
   background: linear-gradient(135deg, #ff4081 0%, #c2185b 100%);
-  box-shadow: 0 8px 20px rgba(233, 30, 99, 0.55), 0 0 12px var(--gold-9x);
+  box-shadow: 0 8px 20px rgba(233, 30, 99, 0.5), 0 0 12px var(--gold-9x);
 }
 
 .custom-answer-box {
@@ -995,20 +955,20 @@ body::before {
   font-size: 0.85rem;
   font-weight: 800;
   cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: 0 4px 10px rgba(136, 14, 79, 0.2);
+  transition: transform 0.22s var(--ease-out-expo), box-shadow 0.22s ease, background 0.22s ease;
+  box-shadow: 0 4px 10px rgba(136, 14, 79, 0.18);
 }
 
 .btn-secondary-9x:hover {
-  transform: translateY(-2px);
+  transform: translate3d(0, -2px, 0);
   background: linear-gradient(180deg, #ffd700 0%, #ffca28 100%);
-  box-shadow: 0 6px 14px rgba(216, 27, 96, 0.35);
+  box-shadow: 0 6px 14px rgba(216, 27, 96, 0.32);
 }
 
 /* Khu vực nút "Không đẹp trai" chạy trốn & xoay vòng lầy lội */
 .runaway-zone {
   position: relative;
-  min-height: 58px;
+  min-height: 62px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1025,7 +985,8 @@ body::before {
   font-size: 0.84rem;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), left 0.28s ease, top 0.28s ease;
+  will-change: transform;
+  transition: transform 0.42s var(--ease-spring), background 0.25s ease, color 0.25s ease;
 }
 
 .dodge-funny-msg {
@@ -1038,6 +999,7 @@ body::before {
   border: 1.5px solid #ff4081;
   padding: 5px 12px;
   border-radius: 999px;
+  animation: cardSmoothEnter 0.3s var(--ease-out-expo);
 }
 
 .step2-footer-nav,
@@ -1078,16 +1040,26 @@ body::before {
   border-radius: 18px;
   padding: 10px 16px;
   margin-bottom: 14px;
-  box-shadow: 0 6px 16px rgba(136, 14, 79, 0.35);
+  box-shadow: 0 6px 16px rgba(136, 14, 79, 0.32);
 }
 
 .certified-rotating-flower {
   font-size: 1.6rem;
-  animation: orbitPageSpin 6s linear infinite;
+  will-change: transform;
+  animation: flowerSpin360 6s linear infinite;
 }
 
 .certified-rotating-flower.reverse {
   animation-direction: reverse;
+}
+
+@keyframes flowerSpin360 {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .certified-line-1 {
@@ -1113,7 +1085,7 @@ body::before {
 .love-letter-9x {
   position: relative;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 240, 246, 0.96) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 240, 246, 0.97) 100%),
     repeating-linear-gradient(transparent, transparent 31px, rgba(233, 30, 99, 0.12) 32px);
   border: 3px solid #e91e63;
   outline: 2px dashed var(--gold-9x);
@@ -1121,8 +1093,24 @@ body::before {
   padding: 22px 22px 20px;
   margin: 14px 0 18px;
   text-align: left;
-  box-shadow: 0 10px 28px rgba(173, 20, 87, 0.2);
+  box-shadow: 0 10px 26px rgba(173, 20, 87, 0.18);
   overflow: hidden;
+  will-change: transform, opacity;
+}
+
+.love-letter-9x.wish-transition {
+  animation: wishSmoothFade 0.42s var(--ease-out-expo) both;
+}
+
+@keyframes wishSmoothFade {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 .letter-Watermark {
@@ -1228,12 +1216,12 @@ body::before {
   font-size: 0.86rem;
   font-weight: 800;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 0.2s var(--ease-out-expo), background 0.2s ease;
 }
 
 .btn-nav-9x:hover {
   background: #ffe4ef;
-  transform: translateY(-1px);
+  transform: translate3d(0, -1.5px, 0);
 }
 
 .btn-random-wish {
@@ -1258,7 +1246,7 @@ body::before {
   border-radius: 18px;
   padding: 14px 16px;
   margin: 12px 0;
-  animation: cardPopIn 0.35s ease;
+  animation: cardSmoothEnter 0.38s var(--ease-out-expo);
 }
 
 .gift-box-title {
@@ -1288,6 +1276,7 @@ body::before {
   align-items: center;
   justify-content: center;
   padding: 16px;
+  animation: overlayFadeIn 0.22s ease;
 }
 
 .modal-card-9x {
@@ -1301,6 +1290,7 @@ body::before {
   flex-direction: column;
   overflow: hidden;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  animation: cardSmoothEnter 0.35s var(--ease-out-expo);
 }
 
 .modal-large {
@@ -1358,12 +1348,12 @@ body::before {
   border-radius: 16px;
   padding: 14px 16px;
   text-align: left;
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  transition: border-color 0.2s ease, transform 0.2s var(--ease-out-expo);
 }
 
 .wish-item-card:hover {
   border-color: #d81b60;
-  transform: translateY(-2px);
+  transform: translate3d(0, -2px, 0);
 }
 
 .wish-item-header {
@@ -1465,7 +1455,7 @@ body::before {
   position: fixed;
   bottom: 24px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate3d(-50%, 0, 0);
   z-index: 100;
   background: linear-gradient(90deg, #880e4f, #d81b60);
   color: #fff9db;
@@ -1475,6 +1465,7 @@ body::before {
   font-weight: 700;
   font-size: 0.9rem;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+  animation: overlayFadeIn 0.2s ease;
 }
 
 .hidden {
@@ -1493,16 +1484,16 @@ body::before {
   .card-9x {
     padding: 20px 14px 24px;
   }
-  .wheel-orbit-track {
-    width: 300px;
-    height: 185px;
+  .wheel-orbit-guide {
+    width: 295px;
+    height: 180px;
   }
   .wheel-pill {
     font-size: 0.66rem;
     padding: 3px 8px;
   }
-  .orbit-ring {
-    width: 96vw;
+  .orbit-ring-guide {
+    width: 94vw;
     height: 82vh;
   }
   .orbit-card {
@@ -1513,4 +1504,3 @@ body::before {
     display: none;
   }
 }
-

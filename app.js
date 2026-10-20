@@ -1,5 +1,6 @@
 // ============================================================================
 // APP LOGIC: LANDING PAGE CHÚC MỪNG 20-10 PHONG CÁCH 9X
+// Đã tối ưu hóa Animation 60/120fps mượt mà (translate3d + OffscreenCanvas)
 // Luồng 3 bước:
 //   1. Hỏi bạn tên là gì?
 //   2. Chỉ ở Bước 2: Hỏi "Đạt đẹp trai không?" (Hiển thị tên + câu trả lời xoay vòng quanh page)
@@ -9,12 +10,25 @@
 (function () {
   // Trạng thái người dùng
   const state = {
+    currentStep: 1,
     friendName: "",
     selectedAnswer: "Đạt đẹp trai vô địch vũ trụ, 10 điểm không có nhưng!",
     currentWishIndex: 0,
     dodgeCount: 0,
     isReverseSpin: false,
-    isTurboSpin: false
+    isTurboSpin: false,
+    isHoveringOrbitCard: false
+  };
+
+  // Trạng thái vật lý vòng xoay mượt mà (Smooth Flywheel Physics)
+  const orbitPhysics = {
+    outerAngle: 0,
+    innerAngle: 0,
+    currentAngularVel: 0.42, // rad/sec
+    baseAngularVel: 0.42,
+    turboAngularVel: 1.35,
+    cards: [],
+    pills: []
   };
 
   // Danh sách 8 câu trả lời xoay vòng quanh page ở Bước 2
@@ -124,7 +138,7 @@
   const toast9x = document.getElementById("toast9x");
 
   // ==========================================================================
-  // 1. KHỞI TẠO NHẠC NỀN 9X (TRÚ MƯA - NHÓM HKT) & TƯƠNG TÁC ĐẦU TIÊN
+  // 1. ĐIỀU KHIỂN NHẠC NỀN 9X (TRÚ MƯA - NHÓM HKT)
   // ==========================================================================
   const musicToggleBtn = document.getElementById("musicToggleBtn");
   const musicNextBtn = document.getElementById("musicNextBtn");
@@ -137,15 +151,11 @@
     window.audio9x.replayFromStart();
   });
 
-  // Tự động bật bài nhạc Trú Mưa - HKT ngay khi người dùng chạm/click hoặc gõ phím
   function ensureMusicStarted() {
-    if (!window.audio9x.isPlaying) {
+    if (!window.audio9x.userPaused) {
       window.audio9x.startMusic();
     }
   }
-  document.addEventListener("click", ensureMusicStarted, { once: true });
-  document.addEventListener("touchstart", ensureMusicStarted, { once: true });
-  document.addEventListener("keydown", ensureMusicStarted, { once: true });
 
   // ==========================================================================
   // 2. BƯỚC 1: NHẬP TÊN CỦA BẠN
@@ -183,7 +193,7 @@
   });
 
   // ==========================================================================
-  // 3. BƯỚC 2: HỎI "ĐẠT ĐẸP TRAI KHÔNG?" & VÒNG XOAY QUANH PAGE
+  // 3. BƯỚC 2: HỎI "ĐẠT ĐẸP TRAI KHÔNG?" & VÒNG XOAY MƯỢT MÀ QUANH PAGE
   // ==========================================================================
   function renderStep2OrbitAndBoard() {
     const name = state.friendName || "Mỹ Nhân";
@@ -192,28 +202,33 @@
     boardCurrentAnswer.textContent = `💖 "${name}: ${state.selectedAnswer}"`;
 
     // Cập nhật tên trong 4 viên thuốc xoay ở trung tâm card
-    document.querySelectorAll(".dyn-name").forEach((el) => {
-      el.textContent = name;
+    orbitPhysics.pills = Array.from(wheelOrbitTrack.querySelectorAll(".wheel-pill"));
+    orbitPhysics.pills.forEach((el) => {
+      const dyn = el.querySelector(".dyn-name");
+      if (dyn) dyn.textContent = name;
     });
 
-    // Render 8 thẻ xoay vòng quanh toàn bộ page (#orbitRing)
+    // Tạo 8 thẻ xoay vòng quanh toàn bộ page (#orbitRing)
     orbitRing.innerHTML = "";
-    const total = ORBIT_ANSWERS_TEMPLATES.length;
-    ORBIT_ANSWERS_TEMPLATES.forEach((ansText, idx) => {
-      const angle = (idx / total) * 2 * Math.PI;
-      const xPercent = 50 + 46 * Math.cos(angle);
-      const yPercent = 50 + 44 * Math.sin(angle);
+    orbitPhysics.cards = [];
 
+    ORBIT_ANSWERS_TEMPLATES.forEach((ansText, idx) => {
       const card = document.createElement("button");
       card.type = "button";
       card.className = "orbit-card";
-      card.style.left = `${xPercent}%`;
-      card.style.top = `${yPercent}%`;
       card.innerHTML = `🌹 <span class="orbit-name">${escapeHtml(name)}</span>: ${escapeHtml(ansText)}`;
       card.title = "Bấm để chốt câu trả lời này!";
 
+      let isHovered = false;
       card.addEventListener("mouseenter", () => {
+        isHovered = true;
+        state.isHoveringOrbitCard = true;
         updateLiveAnswerPreview(ansText);
+      });
+
+      card.addEventListener("mouseleave", () => {
+        isHovered = false;
+        state.isHoveringOrbitCard = false;
       });
 
       card.addEventListener("click", () => {
@@ -221,7 +236,62 @@
       });
 
       orbitRing.appendChild(card);
+      orbitPhysics.cards.push({
+        el: card,
+        index: idx,
+        getHovered: () => isHovered
+      });
     });
+  }
+
+  // Hàm cập nhật vị trí vòng xoay 60/120fps bằng translate3d (không gây reflow, không giật khi đổi tốc độ/chiều)
+  function updateOrbitPositions(dt) {
+    if (state.currentStep !== 2) return;
+
+    const dir = state.isReverseSpin ? -1 : 1;
+    let targetSpeed = state.isTurboSpin
+      ? orbitPhysics.turboAngularVel
+      : orbitPhysics.baseAngularVel;
+
+    if (state.isHoveringOrbitCard) {
+      targetSpeed *= 0.22; // Làm chậm mượt mà khi người dùng rê chuột vào đọc câu trả lời
+    }
+
+    const desiredVel = targetSpeed * dir;
+    // Nội suy vận tốc mượt mà (smooth damping)
+    orbitPhysics.currentAngularVel +=
+      (desiredVel - orbitPhysics.currentAngularVel) * Math.min(1, dt * 6.5);
+
+    orbitPhysics.outerAngle += orbitPhysics.currentAngularVel * dt;
+    orbitPhysics.innerAngle += orbitPhysics.currentAngularVel * 1.45 * dt;
+
+    // Bán kính elip vòng ngoài quanh page
+    const rxOuter = Math.min(window.innerWidth * 0.43, 455);
+    const ryOuter = Math.min(window.innerHeight * 0.41, 355);
+    const totalCards = orbitPhysics.cards.length;
+
+    for (let i = 0; i < totalCards; i++) {
+      const item = orbitPhysics.cards[i];
+      const angle = orbitPhysics.outerAngle + (i / totalCards) * Math.PI * 2;
+      const x = Math.cos(angle) * rxOuter;
+      const y = Math.sin(angle) * ryOuter;
+      const scale = item.getHovered() ? 1.12 : 1;
+      item.el.style.transform = `translate3d(calc(-50% + ${x.toFixed(1)}px), calc(-50% + ${y.toFixed(1)}px), 0) scale(${scale})`;
+    }
+
+    // Bán kính elip vòng trong ngay giữa card Bước 2
+    const isMobile = window.innerWidth <= 640;
+    const rxInner = isMobile ? 132 : 196;
+    const ryInner = isMobile ? 82 : 90;
+    const totalPills = orbitPhysics.pills.length;
+
+    for (let j = 0; j < totalPills; j++) {
+      const pillEl = orbitPhysics.pills[j];
+      const angle = orbitPhysics.innerAngle + (j / totalPills) * Math.PI * 2;
+      const px = Math.cos(angle) * rxInner;
+      const py = Math.sin(angle) * ryInner;
+      pillEl.style.transform = `translate3d(calc(-50% + ${px.toFixed(1)}px), calc(-50% + ${py.toFixed(1)}px), 0)`;
+    }
   }
 
   function updateLiveAnswerPreview(answerText) {
@@ -246,9 +316,8 @@
     const val = customAnswerInput.value.trim();
     if (val) {
       updateLiveAnswerPreview(val);
-      const firstOrbitCard = orbitRing.querySelector(".orbit-card");
-      if (firstOrbitCard) {
-        firstOrbitCard.innerHTML = `🌟 <span class="orbit-name">${escapeHtml(state.friendName)}</span>: ${escapeHtml(val)}`;
+      if (orbitPhysics.cards.length > 0) {
+        orbitPhysics.cards[0].el.innerHTML = `🌟 <span class="orbit-name">${escapeHtml(state.friendName)}</span>: ${escapeHtml(val)}`;
       }
     }
   });
@@ -267,15 +336,11 @@
   toggleSpinDirectionBtn.addEventListener("click", () => {
     window.audio9x.playClick();
     state.isReverseSpin = !state.isReverseSpin;
-    orbitRing.classList.toggle("reverse-spin", state.isReverseSpin);
-    wheelOrbitTrack.classList.toggle("wheel-Orbit-reverse", state.isReverseSpin);
   });
 
   boostSpinSpeedBtn.addEventListener("click", () => {
     window.audio9x.playSpin();
     state.isTurboSpin = !state.isTurboSpin;
-    orbitRing.classList.toggle("turbo-spin", state.isTurboSpin);
-    wheelOrbitTrack.classList.toggle("wheel-Orbit-turbo", state.isTurboSpin);
     boostSpinSpeedBtn.textContent = state.isTurboSpin ? "🐢 Xoay dịu dàng" : "⚡ Xoay tít mù";
   });
 
@@ -294,7 +359,7 @@
       btnAnswerNo.style.background = "linear-gradient(90deg, #ff4081, #d81b60)";
       btnAnswerNo.style.color = "#fff";
       btnAnswerNo.style.border = "2px solid #ffd700";
-      btnAnswerNo.style.transform = "rotate(0deg) scale(1.05)";
+      btnAnswerNo.style.transform = "translate3d(0, 0, 0) rotate(0deg) scale(1.05)";
       btnAnswerNo.onclick = () => {
         confirmStep2Answer("Đạt đẹp trai xỉu lên xỉu xuống, không thể chối từ!");
       };
@@ -302,9 +367,9 @@
     }
 
     const randomX = (Math.random() - 0.5) * 220;
-    const randomY = (Math.random() - 0.5) * 90;
-    const randomDeg = (Math.random() - 0.5) * 50 + (state.dodgeCount * 360);
-    btnAnswerNo.style.transform = `translate(${randomX}px, ${randomY}px) rotate(${randomDeg}deg)`;
+    const randomY = (Math.random() - 0.5) * 85;
+    const randomDeg = (Math.random() - 0.5) * 40 + state.dodgeCount * 360;
+    btnAnswerNo.style.transform = `translate3d(${randomX.toFixed(0)}px, ${randomY.toFixed(0)}px, 0) rotate(${randomDeg.toFixed(0)}deg)`;
   }
 
   btnAnswerNo.addEventListener("mouseenter", () => {
@@ -339,7 +404,7 @@
       spinCelebrationOverlay.classList.add("hidden");
       state.currentWishIndex = Math.floor(Math.random() * window.WISHES_20_10.length);
       goToStep(3);
-    }, 1850);
+    }, 1700);
   }
 
   // ==========================================================================
@@ -366,9 +431,9 @@
     currentWishContent.textContent = formatWishText(wish.content);
 
     const letterCard = document.getElementById("wishLetterCard");
-    letterCard.style.animation = "none";
+    letterCard.classList.remove("wish-transition");
     void letterCard.offsetWidth;
-    letterCard.style.animation = "cardPopIn 0.35s ease";
+    letterCard.classList.add("wish-transition");
   }
 
   prevWishBtn.addEventListener("click", () => {
@@ -539,6 +604,7 @@
   // 7. ĐIỀU HƯỚNG GIỮA 3 BƯỚC
   // ==========================================================================
   function goToStep(stepNumber) {
+    state.currentStep = stepNumber;
     step1Section.classList.toggle("hidden", stepNumber !== 1);
     step2Section.classList.toggle("hidden", stepNumber !== 2);
     step3Section.classList.toggle("hidden", stepNumber !== 3);
@@ -559,8 +625,9 @@
 
     if (stepNumber === 2) {
       state.dodgeCount = 0;
+      state.isHoveringOrbitCard = false;
       btnAnswerNo.textContent = "😜 Không đẹp trai lắm đâu...";
-      btnAnswerNo.style.transform = "none";
+      btnAnswerNo.style.transform = "translate3d(0, 0, 0)";
       btnAnswerNo.style.background = "";
       btnAnswerNo.style.color = "";
       btnAnswerNo.onclick = null;
@@ -574,10 +641,10 @@
   }
 
   // ==========================================================================
-  // 8. CANVAS MƯA HOA TƯƠI & CÁNH HOA HỒNG ĐỎ HỒNG 9X
+  // 8. CANVAS MƯA HOA TƯƠI SIÊU MƯỢT (OFFSCREEN SPRITE CACHE + DELTA TIME)
   // ==========================================================================
   const canvas = document.getElementById("flowerCanvas");
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d", { alpha: true });
   let cw = (canvas.width = window.innerWidth);
   let ch = (canvas.height = window.innerHeight);
 
@@ -587,25 +654,44 @@
   });
 
   const FLOWER_SYMBOLS = ["🌹", "🌺", "🌷", "🌸", "💐", "💖", "✨"];
+  const spriteCache = {};
+
+  // Vẽ sẵn từng emoji hoa ra canvas nhỏ trong bộ nhớ để drawImage siêu nhanh 120fps
+  function initFlowerSprites() {
+    const spriteSize = 64;
+    FLOWER_SYMBOLS.forEach((sym) => {
+      const off = document.createElement("canvas");
+      off.width = spriteSize;
+      off.height = spriteSize;
+      const octx = off.getContext("2d");
+      octx.font = "44px sans-serif";
+      octx.textAlign = "center";
+      octx.textBaseline = "middle";
+      octx.fillText(sym, spriteSize / 2, spriteSize / 2);
+      spriteCache[sym] = off;
+    });
+  }
+  initFlowerSprites();
+
   const petals = [];
   const burstParticles = [];
 
   function createPetal(randomY = false) {
     return {
       x: Math.random() * cw,
-      y: randomY ? Math.random() * ch : -30,
-      size: 15 + Math.random() * 16,
-      speedY: 1.0 + Math.random() * 1.8,
-      speedX: (Math.random() - 0.5) * 1.2,
+      y: randomY ? Math.random() * ch : -35,
+      size: 18 + Math.random() * 16,
+      speedY: 52 + Math.random() * 68, // px/sec
+      speedX: (Math.random() - 0.5) * 45, // px/sec
       rotation: Math.random() * Math.PI * 2,
-      rotSpeed: (Math.random() - 0.5) * 0.03,
+      rotSpeed: (Math.random() - 0.5) * 1.4, // rad/sec
       wobble: Math.random() * Math.PI * 2,
-      wobbleSpeed: 0.02 + Math.random() * 0.03,
+      wobbleSpeed: 1.5 + Math.random() * 1.8,
       symbol: FLOWER_SYMBOLS[Math.floor(Math.random() * FLOWER_SYMBOLS.length)]
     };
   }
 
-  for (let i = 0; i < 36; i++) {
+  for (let i = 0; i < 32; i++) {
     petals.push(createPetal(true));
   }
 
@@ -614,70 +700,86 @@
     const centerY = ch / 2;
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = 3 + Math.random() * 9;
+      const speed = 160 + Math.random() * 440; // px/sec
       burstParticles.push({
         x: centerX,
         y: centerY,
         vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 2.5,
-        gravity: 0.16,
+        vy: Math.sin(angle) * speed - 130,
+        gravity: 520, // px/sec^2
         alpha: 1,
-        size: 18 + Math.random() * 16,
+        size: 22 + Math.random() * 18,
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 4,
         symbol: FLOWER_SYMBOLS[Math.floor(Math.random() * FLOWER_SYMBOLS.length)]
       });
     }
   }
 
-  function animateFlowers() {
+  let lastFrameTime = performance.now();
+
+  function masterAnimationLoop(now) {
+    // Delta time tính bằng giây (giới hạn tối đa 0.05s khi chuyển tab để không bị nhảy bước)
+    const dt = Math.min(0.05, Math.max(0.001, (now - lastFrameTime) / 1000));
+    lastFrameTime = now;
+
+    // 1. Cập nhật vòng xoay Bước 2 mượt mà
+    updateOrbitPositions(dt);
+
+    // 2. Vẽ mưa hoa tươi & pháo hoa trên Canvas
     ctx.clearRect(0, 0, cw, ch);
 
-    petals.forEach((p) => {
-      p.y += p.speedY;
-      p.wobble += p.wobbleSpeed;
-      p.x += p.speedX + Math.sin(p.wobble) * 0.6;
-      p.rotation += p.rotSpeed;
+    for (let i = 0; i < petals.length; i++) {
+      const p = petals[i];
+      p.y += p.speedY * dt;
+      p.wobble += p.wobbleSpeed * dt;
+      p.x += (p.speedX + Math.sin(p.wobble) * 32) * dt;
+      p.rotation += p.rotSpeed * dt;
 
       if (p.y > ch + 35) {
-        p.y = -25;
+        p.y = -30;
         p.x = Math.random() * cw;
       }
-      if (p.x > cw + 30) p.x = -20;
-      if (p.x < -30) p.x = cw + 20;
+      if (p.x > cw + 35) p.x = -25;
+      if (p.x < -35) p.x = cw + 25;
 
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rotation);
-      ctx.font = `${p.size}px sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(p.symbol, 0, 0);
-      ctx.restore();
-    });
+      const sprite = spriteCache[p.symbol];
+      if (sprite) {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
+        ctx.drawImage(sprite, -p.size / 2, -p.size / 2, p.size, p.size);
+        ctx.restore();
+      }
+    }
 
     for (let i = burstParticles.length - 1; i >= 0; i--) {
       const b = burstParticles[i];
-      b.x += b.vx;
-      b.y += b.vy;
-      b.vy += b.gravity;
-      b.alpha -= 0.014;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.vy += b.gravity * dt;
+      b.rotation += b.rotSpeed * dt;
+      b.alpha -= 0.78 * dt;
 
       if (b.alpha <= 0) {
         burstParticles.splice(i, 1);
         continue;
       }
 
-      ctx.save();
-      ctx.globalAlpha = Math.max(0, b.alpha);
-      ctx.font = `${b.size}px sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(b.symbol, b.x, b.y);
-      ctx.restore();
+      const sprite = spriteCache[b.symbol];
+      if (sprite) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, b.alpha);
+        ctx.translate(b.x, b.y);
+        ctx.rotate(b.rotation);
+        ctx.drawImage(sprite, -b.size / 2, -b.size / 2, b.size, b.size);
+        ctx.restore();
+      }
     }
 
-    requestAnimationFrame(animateFlowers);
+    requestAnimationFrame(masterAnimationLoop);
   }
-  animateFlowers();
+  requestAnimationFrame(masterAnimationLoop);
 
   // ==========================================================================
   // TIỆN ÍCH CHUNG

@@ -1,36 +1,112 @@
 // ============================================================================
 // HỆ THỐNG PHÁT NHẠC NỀN 9X (TRÚ MƯA - NHÓM HKT) + HIỆU ỨNG ÂM THANH VUI NHỘN
+// Tự động phát ngay khi mở web (Autoplay + Instant Unlock Fallback)
 // ============================================================================
 
 class Retro9xAudioEngine {
   constructor() {
     this.ctx = null;
     this.isPlaying = false;
+    this.userPaused = false;
     this.masterGain = null;
     this.songTitle = "🎵 Trú Mưa - Nhóm HKT (Huyền Thoại 9x)";
 
-    // Khởi tạo trình phát file MP3 trong thư mục
-    this.bgAudio = new Audio("Trú Mưa Nhóm HKT Official MV.mp3");
+    // Lấy thẻ <audio id="bgMusicElement"> có sẵn trong DOM để mở web phát ngay
+    this.bgAudio =
+      document.getElementById("bgMusicElement") ||
+      new Audio("Trú Mưa Nhóm HKT Official MV.mp3");
     this.bgAudio.loop = true;
     this.bgAudio.volume = 0.85;
     this.bgAudio.preload = "auto";
 
-    // Dự phòng nếu mở từ thư mục cha mà file nằm trong ./20-10/
+    // Dự phòng đường dẫn nếu mở từ thư mục khác
     this.bgAudio.addEventListener("error", () => {
       if (!this.bgAudio.src.includes("20-10/")) {
         this.bgAudio.src = "20-10/Trú Mưa Nhóm HKT Official MV.mp3";
+        if (!this.userPaused) this.tryAutoplayImmediate();
       }
     });
 
     this.bgAudio.addEventListener("play", () => {
-      this.isPlaying = true;
-      this.updateUI();
+      if (!this.bgAudio.muted) {
+        this.isPlaying = true;
+        this.updateUI();
+      }
+    });
+
+    this.bgAudio.addEventListener("playing", () => {
+      if (!this.bgAudio.muted) {
+        this.isPlaying = true;
+        this.updateUI();
+      }
     });
 
     this.bgAudio.addEventListener("pause", () => {
       this.isPlaying = false;
       this.updateUI();
     });
+
+    this.setupAutoplayEverything();
+  }
+
+  setupAutoplayEverything() {
+    // 1. Thử phát ngay lập tức khi script vừa nạp
+    this.tryAutoplayImmediate();
+
+    // 2. Thử lại khi DOM và tài nguyên sẵn sàng
+    window.addEventListener("DOMContentLoaded", () => this.tryAutoplayImmediate());
+    window.addEventListener("load", () => this.tryAutoplayImmediate());
+    window.addEventListener("pageshow", () => this.tryAutoplayImmediate());
+
+    // 3. Mở khóa âm thanh tức thì ngay khi có bất kỳ cử chỉ nhỏ nhất (di chuột, chạm, cuộn, gõ phím)
+    const unlockEvents = [
+      "pointerdown",
+      "pointermove",
+      "mousemove",
+      "touchstart",
+      "touchend",
+      "wheel",
+      "keydown",
+      "click"
+    ];
+
+    const unlockHandler = () => {
+      if (this.userPaused) return;
+      this.bgAudio.muted = false;
+      const p = this.bgAudio.play();
+      if (p !== undefined) {
+        p.then(() => {
+          this.isPlaying = true;
+          this.updateUI();
+          unlockEvents.forEach((evt) =>
+            window.removeEventListener(evt, unlockHandler, { capture: true })
+          );
+        }).catch(() => {});
+      }
+    };
+
+    unlockEvents.forEach((evt) => {
+      window.addEventListener(evt, unlockHandler, { capture: true, passive: true });
+    });
+  }
+
+  tryAutoplayImmediate() {
+    if (this.userPaused) return;
+    this.bgAudio.muted = false;
+    const playPromise = this.bgAudio.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          this.isPlaying = true;
+          this.updateUI();
+        })
+        .catch(() => {
+          // Nếu trình duyệt chặn phát có tiếng trước khi tương tác,
+          // cho phát ngầm (muted) trước để nạp sẵn luồng nhạc, vừa chạm/rê chuột là bật tiếng ngay lập tức
+          this.bgAudio.muted = true;
+          this.bgAudio.play().catch(() => {});
+        });
+    }
   }
 
   initContext() {
@@ -38,7 +114,7 @@ class Retro9xAudioEngine {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       this.ctx = new AudioCtx();
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.value = 0.5;
+      this.masterGain.gain.value = 0.45;
       this.masterGain.connect(this.ctx.destination);
     }
     if (this.ctx.state === "suspended") {
@@ -51,8 +127,8 @@ class Retro9xAudioEngine {
   }
 
   startMusic() {
-    this.initContext();
-    if (this.isPlaying) return;
+    this.userPaused = false;
+    this.bgAudio.muted = false;
     const playPromise = this.bgAudio.play();
     if (playPromise !== undefined) {
       playPromise
@@ -61,7 +137,6 @@ class Retro9xAudioEngine {
           this.updateUI();
         })
         .catch(() => {
-          // Chờ tương tác tiếp theo của người dùng nếu trình duyệt chặn autoplay
           this.isPlaying = false;
           this.updateUI();
         });
@@ -69,13 +144,14 @@ class Retro9xAudioEngine {
   }
 
   stopMusic() {
+    this.userPaused = true;
     this.bgAudio.pause();
     this.isPlaying = false;
     this.updateUI();
   }
 
   toggleMusic() {
-    if (this.isPlaying) {
+    if (this.isPlaying && !this.bgAudio.muted) {
       this.stopMusic();
     } else {
       this.startMusic();
@@ -84,6 +160,8 @@ class Retro9xAudioEngine {
   }
 
   replayFromStart() {
+    this.userPaused = false;
+    this.bgAudio.muted = false;
     this.bgAudio.currentTime = 0;
     this.startMusic();
     this.playClick();
@@ -111,8 +189,8 @@ class Retro9xAudioEngine {
   playClick() {
     this.initContext();
     const now = this.ctx.currentTime;
-    this.playTone(880, "sine", now, 0.07, 0.15);
-    this.playTone(1318.5, "triangle", now + 0.04, 0.1, 0.15);
+    this.playTone(880, "sine", now, 0.07, 0.14);
+    this.playTone(1318.5, "triangle", now + 0.04, 0.1, 0.14);
   }
 
   playDodge() {
@@ -125,7 +203,7 @@ class Retro9xAudioEngine {
     osc.frequency.exponentialRampToValueAtTime(950, now + 0.12);
     osc.frequency.exponentialRampToValueAtTime(420, now + 0.22);
 
-    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.setValueAtTime(0.16, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
 
     osc.connect(gain);
@@ -139,7 +217,7 @@ class Retro9xAudioEngine {
     const now = this.ctx.currentTime;
     const notes = [60, 64, 67, 72, 76, 79, 84, 88, 91, 96];
     notes.forEach((n, idx) => {
-      this.playTone(this.midiToFreq(n), "triangle", now + idx * 0.055, 0.16, 0.15);
+      this.playTone(this.midiToFreq(n), "triangle", now + idx * 0.055, 0.16, 0.14);
     });
   }
 
@@ -155,8 +233,8 @@ class Retro9xAudioEngine {
       { note: 84, delay: 0.70, dur: 0.80 }
     ];
     chord.forEach((c) => {
-      this.playTone(this.midiToFreq(c.note), "triangle", now + c.delay, c.dur, 0.2);
-      this.playTone(this.midiToFreq(c.note - 12), "sawtooth", now + c.delay, c.dur, 0.08);
+      this.playTone(this.midiToFreq(c.note), "triangle", now + c.delay, c.dur, 0.18);
+      this.playTone(this.midiToFreq(c.note - 12), "sawtooth", now + c.delay, c.dur, 0.07);
     });
   }
 
@@ -165,17 +243,18 @@ class Retro9xAudioEngine {
     const trackNameEl = document.getElementById("musicTrackName");
     const eqBars = document.getElementById("musicEqualizer");
 
+    const activelyAudible = this.isPlaying && !this.bgAudio.muted;
     if (toggleBtn) {
-      toggleBtn.innerHTML = this.isPlaying
+      toggleBtn.innerHTML = activelyAudible
         ? '<span>⏸️ Tạm dừng nhạc</span>'
         : '<span>▶️ Bật nhạc 9x</span>';
-      toggleBtn.classList.toggle("playing", this.isPlaying);
+      toggleBtn.classList.toggle("playing", activelyAudible);
     }
     if (trackNameEl) {
       trackNameEl.textContent = this.songTitle;
     }
     if (eqBars) {
-      eqBars.classList.toggle("active", this.isPlaying);
+      eqBars.classList.toggle("active", activelyAudible);
     }
   }
 }
