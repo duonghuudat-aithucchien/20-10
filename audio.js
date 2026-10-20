@@ -1,6 +1,6 @@
 // ============================================================================
 // HỆ THỐNG PHÁT NHẠC NỀN 9X (TRÚ MƯA - NHÓM HKT) + HIỆU ỨNG ÂM THANH VUI NHỘN
-// Tự động phát ngay khi mở web (Autoplay + Instant Unlock Fallback)
+// Sử dụng file nhac-9x.mp3 (ASCII) để tương thích 100% với GitHub Pages & Mobile
 // ============================================================================
 
 class Retro9xAudioEngine {
@@ -11,34 +11,28 @@ class Retro9xAudioEngine {
     this.masterGain = null;
     this.songTitle = "🎵 Trú Mưa - Nhóm HKT (Huyền Thoại 9x)";
 
-    // Lấy thẻ <audio id="bgMusicElement"> có sẵn trong DOM để mở web phát ngay
     this.bgAudio =
-      document.getElementById("bgMusicElement") ||
-      new Audio("Trú Mưa Nhóm HKT Official MV.mp3");
+      document.getElementById("bgMusicElement") || new Audio("nhac-9x.mp3");
     this.bgAudio.loop = true;
-    this.bgAudio.volume = 0.85;
+    this.bgAudio.volume = 0.9;
     this.bgAudio.preload = "auto";
+    this.bgAudio.muted = false;
 
-    // Dự phòng đường dẫn nếu mở từ thư mục khác
+    this.welcomeOverlay = document.getElementById("welcomeMusicOverlay");
+    this.openEnvelopeBtn = document.getElementById("openEnvelopeBtn");
+
+    // Dự phòng nếu nhac-9x.mp3 chưa tải được thì chuyển sang tên gốc
     this.bgAudio.addEventListener("error", () => {
-      if (!this.bgAudio.src.includes("20-10/")) {
-        this.bgAudio.src = "20-10/Trú Mưa Nhóm HKT Official MV.mp3";
+      if (this.bgAudio.src.includes("nhac-9x.mp3")) {
+        this.bgAudio.src = "Trú Mưa Nhóm HKT Official MV.mp3";
         if (!this.userPaused) this.tryAutoplayImmediate();
       }
     });
 
-    this.bgAudio.addEventListener("play", () => {
-      if (!this.bgAudio.muted) {
-        this.isPlaying = true;
-        this.updateUI();
-      }
-    });
-
     this.bgAudio.addEventListener("playing", () => {
-      if (!this.bgAudio.muted) {
-        this.isPlaying = true;
-        this.updateUI();
-      }
+      this.isPlaying = true;
+      this.hideWelcomeOverlay();
+      this.updateUI();
     });
 
     this.bgAudio.addEventListener("pause", () => {
@@ -46,65 +40,87 @@ class Retro9xAudioEngine {
       this.updateUI();
     });
 
-    this.setupAutoplayEverything();
+    this.setupAutoplayAndGestureUnlock();
   }
 
-  setupAutoplayEverything() {
-    // 1. Thử phát ngay lập tức khi script vừa nạp
-    this.tryAutoplayImmediate();
+  hideWelcomeOverlay() {
+    if (this.welcomeOverlay && !this.welcomeOverlay.classList.contains("hidden")) {
+      this.welcomeOverlay.classList.add("closing");
+      setTimeout(() => {
+        this.welcomeOverlay.classList.add("hidden");
+        this.welcomeOverlay.classList.remove("closing");
+      }, 220);
+    }
+  }
 
-    // 2. Thử lại khi DOM và tài nguyên sẵn sàng
+  showWelcomeOverlay() {
+    if (this.welcomeOverlay && !this.isPlaying && !this.userPaused) {
+      this.welcomeOverlay.classList.remove("hidden");
+    }
+  }
+
+  setupAutoplayAndGestureUnlock() {
+    // 1. Thử phát ngay lập tức khi mở trang
+    this.tryAutoplayImmediate();
     window.addEventListener("DOMContentLoaded", () => this.tryAutoplayImmediate());
     window.addEventListener("load", () => this.tryAutoplayImmediate());
-    window.addEventListener("pageshow", () => this.tryAutoplayImmediate());
 
-    // 3. Mở khóa âm thanh tức thì ngay khi có bất kỳ cử chỉ nhỏ nhất (di chuột, chạm, cuộn, gõ phím)
-    const unlockEvents = [
+    // 2. Chỉ lắng nghe các sự kiện tương tác hợp lệ của trình duyệt (click, touch, pointerdown, keydown)
+    // Tuyệt đối KHÔNG dùng mousemove vì Chrome/Safari sẽ từ chối play() trong mousemove
+    const validGestureEvents = [
       "pointerdown",
-      "pointermove",
-      "mousemove",
+      "mousedown",
       "touchstart",
       "touchend",
-      "wheel",
       "keydown",
       "click"
     ];
 
-    const unlockHandler = () => {
+    const unlockOnGesture = () => {
       if (this.userPaused) return;
+      this.initContext();
       this.bgAudio.muted = false;
-      const p = this.bgAudio.play();
-      if (p !== undefined) {
-        p.then(() => {
-          this.isPlaying = true;
-          this.updateUI();
-          unlockEvents.forEach((evt) =>
-            window.removeEventListener(evt, unlockHandler, { capture: true })
-          );
-        }).catch(() => {});
+      const playPromise = this.bgAudio.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            this.isPlaying = true;
+            this.hideWelcomeOverlay();
+            this.updateUI();
+            validGestureEvents.forEach((evt) =>
+              window.removeEventListener(evt, unlockOnGesture, { capture: true })
+            );
+          })
+          .catch(() => {});
       }
     };
 
-    unlockEvents.forEach((evt) => {
-      window.addEventListener(evt, unlockHandler, { capture: true, passive: true });
+    validGestureEvents.forEach((evt) => {
+      window.addEventListener(evt, unlockOnGesture, { capture: true, passive: true });
     });
+
+    if (this.openEnvelopeBtn) {
+      this.openEnvelopeBtn.addEventListener("click", () => {
+        this.startMusic();
+        this.hideWelcomeOverlay();
+      });
+    }
   }
 
   tryAutoplayImmediate() {
-    if (this.userPaused) return;
+    if (this.userPaused || this.isPlaying) return;
     this.bgAudio.muted = false;
     const playPromise = this.bgAudio.play();
     if (playPromise !== undefined) {
       playPromise
         .then(() => {
           this.isPlaying = true;
+          this.hideWelcomeOverlay();
           this.updateUI();
         })
         .catch(() => {
-          // Nếu trình duyệt chặn phát có tiếng trước khi tương tác,
-          // cho phát ngầm (muted) trước để nạp sẵn luồng nhạc, vừa chạm/rê chuột là bật tiếng ngay lập tức
-          this.bgAudio.muted = true;
-          this.bgAudio.play().catch(() => {});
+          // Trình duyệt yêu cầu 1 cú chạm để bật tiếng -> hiển thị phong bì mở thiệp 9x
+          this.showWelcomeOverlay();
         });
     }
   }
@@ -134,6 +150,7 @@ class Retro9xAudioEngine {
       playPromise
         .then(() => {
           this.isPlaying = true;
+          this.hideWelcomeOverlay();
           this.updateUI();
         })
         .catch(() => {
@@ -151,7 +168,7 @@ class Retro9xAudioEngine {
   }
 
   toggleMusic() {
-    if (this.isPlaying && !this.bgAudio.muted) {
+    if (this.isPlaying && !this.bgAudio.paused) {
       this.stopMusic();
     } else {
       this.startMusic();
@@ -243,7 +260,7 @@ class Retro9xAudioEngine {
     const trackNameEl = document.getElementById("musicTrackName");
     const eqBars = document.getElementById("musicEqualizer");
 
-    const activelyAudible = this.isPlaying && !this.bgAudio.muted;
+    const activelyAudible = this.isPlaying && !this.bgAudio.paused;
     if (toggleBtn) {
       toggleBtn.innerHTML = activelyAudible
         ? '<span>⏸️ Tạm dừng nhạc</span>'

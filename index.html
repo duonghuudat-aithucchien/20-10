@@ -6,8 +6,8 @@
   <title>🌹 Chúc Mừng 20-10 | Đại Hội Tôn Vinh Phái Đẹp Phong Cách 9x 💖</title>
   <meta name="description" content="Thiệp điện tử 20-10 phong cách 9x đỏ hồng ngập tràn hoa tươi và 30 lời chúc ngọt ngào!" />
 
-  <!-- Preload file nhạc nền để mở web phát ngay lập tức -->
-  <link rel="preload" href="Trú Mưa Nhóm HKT Official MV.mp3" as="audio" type="audio/mpeg" />
+  <!-- Preload file nhạc nền ASCII chuẩn để GitHub Pages & trình duyệt tải ngay -->
+  <link rel="preload" href="nhac-9x.mp3" as="audio" type="audio/mpeg" />
 
   <!-- Google Fonts đậm chất 9x & chữ nghệ thuật -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -20,12 +20,27 @@
   <!-- Thẻ Audio phát nhạc nền ngay khi mở web -->
   <audio
     id="bgMusicElement"
-    src="Trú Mưa Nhóm HKT Official MV.mp3"
+    src="nhac-9x.mp3"
     autoplay
     loop
     preload="auto"
     playsinline
   ></audio>
+
+  <!-- Phong bì mở thiệp 9x (Chỉ hiện nếu trình duyệt chặn tự phát âm thanh lần đầu tiên mở web) -->
+  <div id="welcomeMusicOverlay" class="welcome-music-overlay hidden">
+    <div class="welcome-envelope-card">
+      <div class="envelope-top-flowers">🌹🌺🌷🌸💐🌸🌷🌺🌹</div>
+      <div class="envelope-seal">💌</div>
+      <h2 class="envelope-title">Thiệp Chúc Mừng 20-10</h2>
+      <p class="envelope-desc">
+        Một tấm thiệp đỏ hồng đậm chất 9x kèm nhạc nền vui tai đang chờ bạn khám phá!
+      </p>
+      <button type="button" id="openEnvelopeBtn" class="btn-primary-9x pulse-glow">
+        🎶 Chạm Để Mở Thiệp &amp; Nghe Nhạc Ngay 💖
+      </button>
+    </div>
+  </div>
 
   <!-- Lớp Canvas mưa cánh hoa hồng & hoa tươi 9x rơi ngập tràn (GPU Cached) -->
   <canvas id="flowerCanvas"></canvas>
